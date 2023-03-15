@@ -7,12 +7,13 @@ $con = $db->conectar();
 
 $productos = isset($_SESSION['carrito']['productos']) ? $_SESSION['carrito']['productos'] : null;
 
-$lista_carrito = array();
-
 //print_r($_SESSION);
+
+$lista_carrito = array();
 
 if ($productos != null) {
     foreach ($productos as $clave => $cantidad) {
+
         $sql = $con->prepare("SELECT id, nombre, precio, descuento, $cantidad AS cantidad FROM productos WHERE id=? AND activo=1");
         $sql->execute([$clave]);
         $lista_carrito[] = $sql->fetch(PDO::FETCH_ASSOC);
@@ -85,6 +86,7 @@ if ($productos != null) {
             <div class="row">
                 <div class="col-6">
                     <h4>Detalles</h4>
+                    <div id="paypal-button-container"></div>
                 </div>
                 <div class="col-6">
                     <div class="table-responsive">
@@ -93,7 +95,6 @@ if ($productos != null) {
                                 <tr>
                                     <th>Producto</th>
                                     <th>Subtotal</th>
-                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -120,9 +121,8 @@ if ($productos != null) {
                                     <?php } ?>
 
                                     <tr>
-                                        <td colspan="3"></td>
                                         <td colspan="2">
-                                            <p class="h3" id="total"><?php echo MONEDA . number_format($total, 2, '.', ','); ?></p>
+                                            <p class="h3 text-end" id="total"><?php echo MONEDA . number_format($total, 2, '.', ','); ?></p>
                                         </td>
                                         <td colspan="3"></td>
                                     </tr>
@@ -253,6 +253,50 @@ if ($productos != null) {
             <p class="m-0 text-center text-white">Copyright &copy; Your Website 2022</p>
         </div>
     </footer>
+    <script src="https://www.paypal.com/sdk/js?client-id=<?php echo CLIENT_ID; ?>&currency=<?php echo CURRENCY;?>"></script>
+
+    <script>
+        paypal.Buttons({
+            style: {
+                color: 'blue',
+                shape: 'pill',
+                label: 'pay'
+            },
+            createOrder: function(data, actions) {
+                return actions.order.create({
+                    purchase_units: [{
+                        amount: {
+                            value: <?php echo $total; ?>
+                        }
+                    }]
+                });
+            },
+
+            onApprove: function(data, actions) {
+                actions.order.capture().then(function (detalles) {
+
+                    console.log(detalles)
+
+                    let url = 'clases/captura.php'
+
+                    return fetch(url, {
+                        method: 'post',
+                        headers: {
+                            'content-type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            detalles: detalles
+                        })
+                    })
+                });
+            },
+
+            onCancel: function(data) {
+                alert("Pago cancelado");
+                console.log(data);
+            }
+        }).render('#paypal-button-container')
+    </script>
     <!-- Bootstrap core JS-->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Core theme JS-->
